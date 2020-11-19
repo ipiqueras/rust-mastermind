@@ -16,7 +16,7 @@ extern crate log;
 struct Opt {
     /// Number of different colors to use
     #[structopt(short = "n", long = "ncolors", default_value = "4")]
-    colors: u32,
+    colors: u8,
     /// Length of the code to break
     #[structopt(short, long, default_value = "4")]
     length: u32,
