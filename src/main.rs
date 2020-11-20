@@ -23,9 +23,9 @@ struct Opt {
     /// Max number of guesses
     #[structopt(short, long, default_value = "20")]
     guesses: u32,
-    /// Allow (or not) repeated colors in the code
+    /// Do not allow repeated colors in the code
     #[structopt(short, long)]
-    repeat: bool
+    unique: bool
 }
 
 
