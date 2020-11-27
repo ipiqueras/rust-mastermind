@@ -34,9 +34,11 @@ fn main() {
     let opt = Opt::from_args();
     println!("{:?}", opt);
     info!("Starting the game!");
-    if let Err(e) = mastermind::run(opt.guesses, opt.length,opt.colors) {
+    if let Err(e) = mastermind::run(opt.guesses, opt.length,opt.colors, opt.unique) {
         eprintln!("{}", e);
         eprintln!("Sorry, but you lost!");
         process::exit(2);
+    } else {
+        println!("Congratulations, you won!");
     }
 }

@@ -16,6 +16,8 @@ const MIN_LENGTH: u32 = 4;
 const MAX_SYMBOLS: u8 = 20;
 /// Min number of symbols (colors to choose)
 const MIN_SYMBOLS: u8 = 2;
+/// Different symbols that we can choose for the secret code (up to MAX_SYMBOLS)
+const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRST";
 
 /// Finds all patterns in a String, returning the indexes in Vec<usize>
 macro_rules! findall {
@@ -95,18 +97,44 @@ pub fn validate_nsymbols(length: u8) -> ValidationResult {
 }
 
 /// Creates a random string of `length` using up to `n_symbols` different symbols
-fn create_secret_code(length: u32, n_symbols: u8) -> String {
+/// If `unique` is true, then we cannot use the same symbol twice
+fn create_secret_code(length: u32, n_symbols: u8, unique: bool) -> Option<String> {
 
-    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRST";
     let mut rng = rand::thread_rng();
 
+    // if symbols must be unique, then we need at least `length` number of symbols
+    if n_symbols < length as u8 && unique {
+        warn!("Cannot create a secret code of length '{}' using '{}' symbols if unique is set!",
+               length, n_symbols);
+        return None
+    }
     info!("Creating random number");
-    let secret: String = (0..length).map(|_| {
+    let secret: String = if unique {
+        let mut chosen_chars: Vec<char> = Vec::new();
+        let mut chosen_length: u32 = 0;
+        loop {
+            loop {
+                let idx: usize = usize::from(rng.gen_range(0u8, n_symbols));
+                let r: char = CHARSET[idx] as char;
+                if !chosen_chars.contains(&r) {
+                    chosen_chars.push(r);
+                    break;
+                }
+            }
+            chosen_length += 1;
+            if chosen_length >= length {
+                break
+            }
+        }
+        chosen_chars.iter().collect()
+    } else {
+        (0..length).map(|_| {
             let idx: usize = usize::from(rng.gen_range(0u8, n_symbols));
             CHARSET[idx] as char
-        }).collect();
+        }).collect()
+    };
     debug!("Secret code chosen: '{}'", &secret);
-    secret
+    Some(secret)
 }
 
 /// Reads a single line (user guess) from standard input
@@ -158,13 +186,12 @@ fn check_user_guess(secret: &String, guess: &String) -> String {
 
 /// Main application loop, generates the secret code and allows the user
 /// to input guesses, calculating and printing the result
-pub fn run(attempts: u32, length: u32, n_symbols: u8) -> Result<(), &'static str> {
+pub fn run(attempts: u32, length: u32, n_symbols: u8, unique: bool) -> Result<(), &'static str> {
 
     validate_attempts(attempts).expect("Validation error: incorrect attempts");
     validate_length(length).expect("Validation error: incorrect code length");
     validate_nsymbols(n_symbols).expect("Validation error: incorrect number of symbols");
-
-    let secret = create_secret_code(length, n_symbols);
+    let secret = create_secret_code(length, n_symbols, unique).expect("Cannot create secret code");
     let mut expected = String::with_capacity(length as usize);
     for _ in 0..length {
         expected.push('X');
@@ -209,13 +236,13 @@ mod tests {
 
     #[test]
     fn test_secret_code() {
-        let secret = create_secret_code(5, 1);
+        let secret = create_secret_code(5, 1, false).expect("Should not fail");
         assert_eq!(secret.len(), 5);
         for c in secret.chars() {
             assert_eq!('\u{0041}', c);
         }
         // with only two symbols to create the secret code, each char should be 'A' or 'B'
-        let secret = create_secret_code(5, 2);
+        let secret = create_secret_code(5, 2, false).expect("Should not fail");
         assert_eq!(secret.len(), 5);
         for c in secret.chars() {
             assert!('\u{0041}' == c || '\u{0042}' == c);
